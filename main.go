@@ -46,8 +46,9 @@ func main() {
 		credsPath     = flag.String("creds", "/etc/nats/service.creds", "Path to the NATS user creds file used for authn with NATS")
 		maxReconnects = flag.Int("max-reconnects", 10, "The number of reconnection attempts the NATS client will make if the server does not respond")
 		reconnectWait = flag.Int("reconnect-wait", 1, "The number of seconds to wait between reconnection attempts")
-		natsSubject   = flag.String("subject", "cyverse.discoenv.analyses.>", "The NATS subject to subscribe to")
+		natsSubject   = flag.String("subject", "cyverse.discoenv.analyses.>", "The NATS subject to subscribe to for incoming requests")
 		natsQueue     = flag.String("queue", "discoenv_analyses_service", "The NATS queue name for this instance. Joins to a queue group by default")
+		usersSubject  = flag.String("users-subject", "cyverse.discoenv.users.requests", "The NATS subject to send user-related requests out on")
 		logLevel      = flag.String("log-level", "info", "One of trace, debug, info, warn, error, fatal, or panic.")
 	)
 
@@ -110,7 +111,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if _, err = conn.QueueSubscribe(*natsSubject, *natsQueue, getHandler(conn, &httpClient, appsBaseURL)); err != nil {
+	if _, err = conn.QueueSubscribe(*natsSubject, *natsQueue, getHandler(conn, &httpClient, appsBaseURL, *usersSubject)); err != nil {
 		log.Fatal(err)
 	}
 
@@ -210,7 +211,7 @@ func lookupUsername(ctx context.Context, conn *nats.EncodedConn, subject string,
 	return expected.Username, nil
 }
 
-func getHandler(conn *nats.EncodedConn, httpClient *http.Client, appsBaseURL *url.URL) nats.Handler {
+func getHandler(conn *nats.EncodedConn, httpClient *http.Client, appsBaseURL *url.URL, usersSubject string) nats.Handler {
 	return func(subject, reply string, request *analysis.AnalysisRecordLookupRequest) {
 		var (
 			err        error
@@ -249,9 +250,13 @@ func getHandler(conn *nats.EncodedConn, httpClient *http.Client, appsBaseURL *ur
 			analysisID, err = getAnalysisIDByExternalID(httpClient, appsBaseURL, requestingUser, request.GetExternalId())
 			if err != nil {
 				if errors.Is(err, ErrAnalysisNotFound) {
-					handleError(ctx, err, svcerror.Code_NOT_FOUND, reply, conn)
+					HandleError(ctx, err, reply, conn, &ErrorOptions{
+						ErrorCode: svcerror.Code_NOT_FOUND,
+					})
 				} else {
-					handleError(ctx, err, svcerror.Code_BAD_REQUEST, reply, conn)
+					HandleError(ctx, err, reply, conn, &ErrorOptions{
+						ErrorCode: svcerror.Code_BAD_REQUEST,
+					})
 				}
 				return
 			}
@@ -266,9 +271,9 @@ func getHandler(conn *nats.EncodedConn, httpClient *http.Client, appsBaseURL *ur
 		case *analysis.AnalysisRecordLookupRequest_UserId:
 			// Hits the discoenv-users service to get the username and then
 			// filters with that.
-			username, err := lookupUsername(ctx, conn, "discoenv.users.lookup", request.GetUserId())
+			username, err := lookupUsername(ctx, conn, usersSubject, request.GetUserId())
 			if err != nil {
-				handleError(ctx, err, svcerror.Code_BAD_REQUEST, reply, conn)
+				HandleError(ctx, err, reply, conn, nil)
 				return
 			}
 
@@ -295,7 +300,7 @@ func getHandler(conn *nats.EncodedConn, httpClient *http.Client, appsBaseURL *ur
 
 		records, err := getAnalysis(httpClient, appsBaseURL, filter)
 		if err != nil {
-			handleError(ctx, err, svcerror.Code_BAD_REQUEST, reply, conn)
+			HandleError(ctx, err, reply, conn, nil)
 			return
 		}
 
@@ -304,7 +309,7 @@ func getHandler(conn *nats.EncodedConn, httpClient *http.Client, appsBaseURL *ur
 		}
 
 		if err = NATSPublishResponse(ctx, conn, reply, &analysisList); err != nil {
-			handleError(ctx, err, svcerror.Code_INTERNAL, reply, conn)
+			HandleError(ctx, err, reply, conn, nil)
 			return
 		}
 	}
@@ -314,6 +319,20 @@ type DETypes interface {
 	GetHeader() *header.Header
 
 	proto.Message
+}
+
+type DEServiceError struct {
+	ServiceError *svcerror.Error
+}
+
+func NewServiceError(serr *svcerror.Error) *DEServiceError {
+	return &DEServiceError{
+		ServiceError: serr,
+	}
+}
+
+func (d DEServiceError) Error() string {
+	return d.ServiceError.Message
 }
 
 func NATSRequest[ReqType DETypes, Expected DETypes](ctx context.Context, conn *nats.EncodedConn, subject string, request ReqType) (Expected, error) {
@@ -343,9 +362,8 @@ func NATSRequest[ReqType DETypes, Expected DETypes](ctx context.Context, conn *n
 
 	switch t.(type) {
 	case svcerror.Error:
-		respErr := t.(svcerror.Error)
-		err = errors.New(respErr.Message)
-		return resp, err
+		respErr := t.(DEServiceError)
+		return resp, &respErr
 	default:
 		resp, ok = t.(Expected)
 		if !ok {
@@ -367,26 +385,45 @@ func NATSPublishResponse[ResponseT DETypes](ctx context.Context, conn *nats.Enco
 	return conn.Publish(reply, response)
 }
 
-func handleError(ctx context.Context, err error, code svcerror.Code, reply string, conn *nats.EncodedConn) {
-	span := trace.SpanFromContext(ctx) // or pass the span into handleError
+type ErrorOptions struct {
+	ErrorCode svcerror.Code
+}
+
+func HandleError(ctx context.Context, err error, reply string, conn *nats.EncodedConn, opts *ErrorOptions) {
+	var serviceErr *DEServiceError
+
+	// Set error information into the span.
+	span := trace.SpanFromContext(ctx)
 	span.RecordError(err)
 	span.SetStatus(codes.Error, err.Error())
 
-	svcerr := svcerror.Error{
-		ErrorCode: code,
-		Message:   err.Error(),
+	// Set up the service error.
+	switch err.(type) {
+	case *DEServiceError:
+		serviceErr = err.(*DEServiceError)
+	default:
+		serviceErr = &DEServiceError{
+			ServiceError: &svcerror.Error{
+				ErrorCode: svcerror.Code_INTERNAL,
+				Message:   err.Error(),
+			},
+		}
 	}
 
-	log.Error(&svcerr)
+	// Let the options ErrorCode override the one passed with the error.
+	if opts != nil {
+		serviceErr.ServiceError.ErrorCode = opts.ErrorCode
+	}
 
+	// Make sure the span is set up in the outgoing message.
 	carrier := gotelnats.PBTextMapCarrier{
-		Header: svcerr.Header,
+		Header: serviceErr.ServiceError.Header,
 	}
 
 	_, span = gotelnats.InjectSpan(ctx, &carrier, reply, gotelnats.Send)
 	defer span.End()
 
-	if err = conn.Publish(reply, &svcerr); err != nil {
+	if err = conn.Publish(reply, &serviceErr.ServiceError); err != nil {
 		log.Error(err)
 	}
 }

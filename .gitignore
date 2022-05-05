@@ -1,0 +1,4 @@
+discoenv-analyses
+**/jobservices.yml
+configs/local.yml
+configs/local.yaml
