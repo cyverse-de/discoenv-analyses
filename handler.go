@@ -30,14 +30,21 @@ func getHandler(conn *nats.EncodedConn, httpClient *http.Client, appsBaseURL *ur
 
 		requestingUser := request.RequestingUser
 
+		if requestingUser == "" {
+			HandleError(ctx, errors.New("requesting_user must be set in request"), reply, conn, &ErrorOptions{
+				ErrorCode: svcerror.Code_BAD_REQUEST,
+			})
+			return
+		}
+
 		switch request.LookupIds.(type) {
 		case *analysis.AnalysisRecordLookupRequest_AnalysisId:
 			analysisID = request.GetAnalysisId()
 
 			filter = []map[string]string{
 				{
-					"id":   analysisID,
-					"user": requestingUser,
+					"field": "id",
+					"value": analysisID,
 				},
 			}
 
@@ -63,8 +70,8 @@ func getHandler(conn *nats.EncodedConn, httpClient *http.Client, appsBaseURL *ur
 
 			filter = []map[string]string{
 				{
-					"id":   analysisID,
-					"user": requestingUser,
+					"field": "id",
+					"value": analysisID,
 				},
 			}
 
@@ -79,8 +86,8 @@ func getHandler(conn *nats.EncodedConn, httpClient *http.Client, appsBaseURL *ur
 
 			filter = []map[string]string{
 				{
-					"username": username,
-					"user":     requestingUser,
+					"field": "username",
+					"value": username,
 				},
 			}
 
@@ -90,15 +97,15 @@ func getHandler(conn *nats.EncodedConn, httpClient *http.Client, appsBaseURL *ur
 
 			filter = []map[string]string{
 				{
-					"username": username,
-					"user":     requestingUser,
+					"field": "username",
+					"value": username,
 				},
 			}
 		}
 
 		log.Debug(filter)
 
-		records, err := getAnalysis(httpClient, appsBaseURL, filter)
+		records, err := getAnalysis(httpClient, appsBaseURL, requestingUser, filter)
 		if err != nil {
 			HandleError(ctx, err, reply, conn, nil)
 			return

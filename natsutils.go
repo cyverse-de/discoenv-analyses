@@ -113,7 +113,7 @@ func HandleError(ctx context.Context, err error, reply string, conn *nats.Encode
 	_, span = gotelnats.InjectSpan(ctx, &carrier, reply, gotelnats.Send)
 	defer span.End()
 
-	if err = conn.Publish(reply, &serviceErr.ServiceError); err != nil {
+	if err = conn.Publish(reply, serviceErr.ServiceError); err != nil {
 		log.Error(err)
 	}
 }

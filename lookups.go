@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -13,16 +14,19 @@ import (
 	"github.com/nats-io/nats.go"
 )
 
-func getAnalysis(httpClient *http.Client, appsBaseURL *url.URL, filter []map[string]string) ([]*analysis.AnalysisRecord, error) {
+func getAnalysis(httpClient *http.Client, appsBaseURL *url.URL, requestingUser string, filter []map[string]string) ([]*analysis.AnalysisRecord, error) {
 	reqURL := *appsBaseURL
-	reqURL.Path = path.Join(reqURL.Path, "/analysis")
+	reqURL.Path = path.Join(reqURL.Path, "/analyses")
 
 	filterJSON, err := json.Marshal(filter)
 	if err != nil {
 		return nil, err
 	}
 
-	reqURL.Query().Add("filter", url.QueryEscape(string(filterJSON)))
+	q := reqURL.Query()
+	q.Add("user", requestingUser)
+	q.Add("filter", string(filterJSON))
+	reqURL.RawQuery = q.Encode()
 
 	response, err := httpClient.Get(reqURL.String())
 	if err != nil {
@@ -30,6 +34,10 @@ func getAnalysis(httpClient *http.Client, appsBaseURL *url.URL, filter []map[str
 		return nil, err
 	}
 	defer response.Body.Close()
+
+	if response.StatusCode < 200 || response.StatusCode >= 400 {
+		return nil, fmt.Errorf("status code from '%s' was %d", reqURL.String(), response.StatusCode)
+	}
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
