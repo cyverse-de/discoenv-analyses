@@ -13,6 +13,11 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// NATSRequest handles instrumenting the outgoing request with telemetry info,
+// blocking until the request is responded to, and handling responses containing
+// errors returned by the other service. It is a generic function that can
+// accept values that implement the DETypes interfacefor both the outgoing
+// request and the expected response.
 func NATSRequest[ReqType DETypes, Expected DETypes](ctx context.Context, conn *nats.EncodedConn, subject string, request ReqType) (Expected, error) {
 	var (
 		err  error
@@ -52,6 +57,9 @@ func NATSRequest[ReqType DETypes, Expected DETypes](ctx context.Context, conn *n
 	return resp, nil
 }
 
+// NATSPublishRespone instruments outgoing responses with telemetry information.
+// It is a generic function that will accept types that implement the DETypes
+// interface.
 func NATSPublishResponse[ResponseT DETypes](ctx context.Context, conn *nats.EncodedConn, reply string, response ResponseT) error {
 	carrier := gotelnats.PBTextMapCarrier{
 		Header: response.GetHeader(),
