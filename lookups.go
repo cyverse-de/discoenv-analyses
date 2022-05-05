@@ -44,7 +44,7 @@ func getAnalysis(httpClient *http.Client, appsBaseURL *url.URL, requestingUser s
 		return nil, err
 	}
 
-	resp := analysisResponse{}
+	resp := analysis.AnalysisRecordResponse{}
 	if err = json.Unmarshal(body, &resp); err != nil {
 		return nil, err
 	}

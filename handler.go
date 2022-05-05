@@ -103,8 +103,6 @@ func getHandler(conn *nats.EncodedConn, httpClient *http.Client, appsBaseURL *ur
 			}
 		}
 
-		log.Debug(filter)
-
 		records, err := getAnalysis(httpClient, appsBaseURL, requestingUser, filter)
 		if err != nil {
 			HandleError(ctx, err, reply, conn, nil)

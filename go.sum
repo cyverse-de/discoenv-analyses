@@ -69,6 +69,10 @@ github.com/cyverse-de/p/go/analysis v0.0.7 h1:s8ofEPqC2LKknjS8pdjBytcst24U0Lqf8C
 github.com/cyverse-de/p/go/analysis v0.0.7/go.mod h1:CmI+lhhoBNyxpfbDkLUgqRBiyPinVfKl3AK1jcyc19Q=
 github.com/cyverse-de/p/go/analysis v0.0.8 h1:JluFpzPwlB/KzU+7fX0Mvg8pb66Tlt5diFmdSyT61+Y=
 github.com/cyverse-de/p/go/analysis v0.0.8/go.mod h1:eMXSmCr3hDgyeMOqmW8q7P5nwN90zZR/yJuEdEwFxow=
+github.com/cyverse-de/p/go/analysis v0.0.9 h1:DsM+6tuiI1J4cBuOpNsJoPhe/qXqWcsfUDr8sOa4rFA=
+github.com/cyverse-de/p/go/analysis v0.0.9/go.mod h1:eMXSmCr3hDgyeMOqmW8q7P5nwN90zZR/yJuEdEwFxow=
+github.com/cyverse-de/p/go/analysis v0.0.10 h1:/EyPQ2Ri2ZdD53D482noHmH7ugVq/O8R2wOVgIDOPj0=
+github.com/cyverse-de/p/go/analysis v0.0.10/go.mod h1:eMXSmCr3hDgyeMOqmW8q7P5nwN90zZR/yJuEdEwFxow=
 github.com/cyverse-de/p/go/header v0.0.0-20220425195853-720402e94a27 h1:lNaaskytNEsPRyuSwmtoGfN2Qr6OG/fO/BzXYNNfths=
 github.com/cyverse-de/p/go/header v0.0.0-20220425195853-720402e94a27/go.mod h1:VHHZzBOwFQLfIrfIjK1FJlaKy00m4CFGufx4LhVXd8Q=
 github.com/cyverse-de/p/go/header v0.0.1 h1:YgI0DLIOvL6m0LF22tFUk3OHLtW5NCuNiaGqwkxv64s=
