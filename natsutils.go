@@ -18,7 +18,12 @@ import (
 // errors returned by the other service. It is a generic function that can
 // accept values that implement the DETypes interfacefor both the outgoing
 // request and the expected response.
-func NATSRequest[ReqType DETypes, Expected DETypes](ctx context.Context, conn *nats.EncodedConn, subject string, request ReqType) (Expected, error) {
+func NATSRequest[ReqType DETypes, Expected DETypes](
+	ctx context.Context,
+	conn *nats.EncodedConn,
+	subject string,
+	request ReqType,
+) (Expected, error) {
 	var (
 		err  error
 		resp Expected
@@ -60,7 +65,12 @@ func NATSRequest[ReqType DETypes, Expected DETypes](ctx context.Context, conn *n
 // NATSPublishRespone instruments outgoing responses with telemetry information.
 // It is a generic function that will accept types that implement the DETypes
 // interface.
-func NATSPublishResponse[ResponseT DETypes](ctx context.Context, conn *nats.EncodedConn, reply string, response ResponseT) error {
+func NATSPublishResponse[ResponseT DETypes](
+	ctx context.Context,
+	conn *nats.EncodedConn,
+	reply string,
+	response ResponseT,
+) error {
 	carrier := gotelnats.PBTextMapCarrier{
 		Header: response.GetHeader(),
 	}
