@@ -10,6 +10,7 @@ import (
 	"path"
 
 	"github.com/cyverse-de/p/go/analysis"
+	"github.com/cyverse-de/p/go/svcerror"
 	pbuser "github.com/cyverse-de/p/go/user"
 	"github.com/nats-io/nats.go"
 )
@@ -56,7 +57,9 @@ func getAnalysisIDByExternalID(httpClient *http.Client, appsBaseURL *url.URL, re
 	reqURL := *appsBaseURL
 	reqURL.Path = path.Join(reqURL.Path, "/admin/analyses/by-external-id", externalID)
 
-	reqURL.Query().Add("user", requestingUser)
+	q := reqURL.Query()
+	q.Add("user", requestingUser)
+	reqURL.RawQuery = q.Encode()
 
 	response, err := httpClient.Get(reqURL.String())
 	if err != nil {
@@ -70,7 +73,12 @@ func getAnalysisIDByExternalID(httpClient *http.Client, appsBaseURL *url.URL, re
 		return "", err
 	}
 
-	resp := analysisResponse{}
+	if response.StatusCode < 200 || response.StatusCode >= 400 {
+		svcErr := NewDEServiceError(svcerror.ErrorCode_INTERNAL, string(body))
+		return "", svcErr
+	}
+
+	resp := analysis.AnalysisRecordList{}
 	if err = json.Unmarshal(body, &resp); err != nil {
 		return "", err
 	}

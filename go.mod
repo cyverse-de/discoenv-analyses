@@ -8,10 +8,10 @@ require (
 	github.com/cyverse-de/go-mod/logging v0.0.2
 	github.com/cyverse-de/go-mod/otelutils v0.0.2
 	github.com/cyverse-de/go-mod/protobufjson v0.0.2
-	github.com/cyverse-de/p/go/analysis v0.0.10
+	github.com/cyverse-de/p/go/analysis v0.0.12
 	github.com/cyverse-de/p/go/header v0.0.1
-	github.com/cyverse-de/p/go/svcerror v0.0.3
-	github.com/cyverse-de/p/go/user v0.0.7
+	github.com/cyverse-de/p/go/svcerror v0.0.5
+	github.com/cyverse-de/p/go/user v0.0.8
 	github.com/nats-io/nats.go v1.14.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/viper v1.8.1

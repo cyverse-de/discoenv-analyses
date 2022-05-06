@@ -18,6 +18,11 @@ func getHandler(conn *nats.EncodedConn, httpClient *http.Client, appsBaseURL *ur
 			filter     []map[string]string
 			analysisID string
 		)
+
+		analysisList := analysis.AnalysisRecordList{
+			Analyses: []*analysis.AnalysisRecord{},
+		}
+
 		// Set up telemetry tracking
 		carrier := gotelnats.PBTextMapCarrier{
 			Header: request.Header,
@@ -26,14 +31,21 @@ func getHandler(conn *nats.EncodedConn, httpClient *http.Client, appsBaseURL *ur
 		ctx, span := gotelnats.StartSpan(&carrier, subject, gotelnats.Process)
 		defer span.End()
 
-		log.Infof("%+v\n", request)
+		log.Debugf("%+v\n", request)
 
 		requestingUser := request.RequestingUser
 
 		if requestingUser == "" {
-			HandleError(ctx, errors.New("requesting_user must be set in request"), reply, conn, &ErrorOptions{
-				ErrorCode: svcerror.Code_BAD_REQUEST,
-			})
+			analysisList.Error = InitServiceError(
+				ctx,
+				errors.New("requesting_user must be set in request"),
+				&ErrorOptions{
+					ErrorCode: svcerror.ErrorCode_PARAMETER_MISSING,
+				},
+			)
+			if err = NATSPublishResponse(ctx, conn, reply, &analysisList); err != nil {
+				log.Error(err)
+			}
 			return
 		}
 
@@ -57,13 +69,16 @@ func getHandler(conn *nats.EncodedConn, httpClient *http.Client, appsBaseURL *ur
 			analysisID, err = getAnalysisIDByExternalID(httpClient, appsBaseURL, requestingUser, request.GetExternalId())
 			if err != nil {
 				if errors.Is(err, ErrAnalysisNotFound) {
-					HandleError(ctx, err, reply, conn, &ErrorOptions{
-						ErrorCode: svcerror.Code_NOT_FOUND,
+					analysisList.Error = InitServiceError(ctx, err, &ErrorOptions{
+						ErrorCode: svcerror.ErrorCode_NOT_FOUND,
 					})
 				} else {
-					HandleError(ctx, err, reply, conn, &ErrorOptions{
-						ErrorCode: svcerror.Code_BAD_REQUEST,
+					analysisList.Error = InitServiceError(ctx, err, &ErrorOptions{
+						ErrorCode: svcerror.ErrorCode_BAD_REQUEST,
 					})
+				}
+				if err = NATSPublishResponse(ctx, conn, reply, &analysisList); err != nil {
+					log.Error(err)
 				}
 				return
 			}
@@ -80,7 +95,10 @@ func getHandler(conn *nats.EncodedConn, httpClient *http.Client, appsBaseURL *ur
 			// filters with that.
 			username, err := lookupUsername(ctx, conn, usersSubject, request.GetUserId())
 			if err != nil {
-				HandleError(ctx, err, reply, conn, nil)
+				analysisList.Error = InitServiceError(ctx, err, nil)
+				if err = NATSPublishResponse(ctx, conn, reply, &analysisList); err != nil {
+					log.Error(err)
+				}
 				return
 			}
 
@@ -105,16 +123,17 @@ func getHandler(conn *nats.EncodedConn, httpClient *http.Client, appsBaseURL *ur
 
 		records, err := getAnalysis(httpClient, appsBaseURL, requestingUser, filter)
 		if err != nil {
-			HandleError(ctx, err, reply, conn, nil)
+			analysisList.Error = InitServiceError(ctx, err, nil)
+			if err = NATSPublishResponse(ctx, conn, reply, &analysisList); err != nil {
+				log.Error(err)
+			}
 			return
 		}
 
-		analysisList := analysis.AnalysisRecordList{
-			Analyses: records,
-		}
+		analysisList.Analyses = records
 
 		if err = NATSPublishResponse(ctx, conn, reply, &analysisList); err != nil {
-			HandleError(ctx, err, reply, conn, nil)
+			log.Error(err)
 			return
 		}
 	}
