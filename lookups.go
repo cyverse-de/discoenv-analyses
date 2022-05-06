@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"path"
 
+	"github.com/cyverse-de/go-mod/gotelnats"
 	"github.com/cyverse-de/p/go/analysis"
 	"github.com/cyverse-de/p/go/svcerror"
 	pbuser "github.com/cyverse-de/p/go/user"
@@ -74,7 +75,7 @@ func getAnalysisIDByExternalID(httpClient *http.Client, appsBaseURL *url.URL, re
 	}
 
 	if response.StatusCode < 200 || response.StatusCode >= 400 {
-		svcErr := NewDEServiceError(svcerror.ErrorCode_INTERNAL, string(body))
+		svcErr := gotelnats.NewDEServiceError(svcerror.ErrorCode_INTERNAL, string(body))
 		return "", svcErr
 	}
 
@@ -101,9 +102,12 @@ func lookupUsername(ctx context.Context, conn *nats.EncodedConn, subject string,
 			UserId: userID,
 		},
 	}
-	expected, err = NATSRequest[*pbuser.UserLookupRequest, *pbuser.User](ctx, conn, subject, request)
-	if err != nil {
+
+	expected = &pbuser.User{}
+
+	if err = gotelnats.Request[*pbuser.UserLookupRequest, *pbuser.User](ctx, conn, subject, request, expected); err != nil {
 		return "", err
 	}
+
 	return expected.Username, nil
 }

@@ -36,14 +36,14 @@ func getHandler(conn *nats.EncodedConn, httpClient *http.Client, appsBaseURL *ur
 		requestingUser := request.RequestingUser
 
 		if requestingUser == "" {
-			analysisList.Error = InitServiceError(
+			analysisList.Error = gotelnats.InitServiceError(
 				ctx,
 				errors.New("requesting_user must be set in request"),
-				&ErrorOptions{
+				&gotelnats.ErrorOptions{
 					ErrorCode: svcerror.ErrorCode_PARAMETER_MISSING,
 				},
 			)
-			if err = NATSPublishResponse(ctx, conn, reply, &analysisList); err != nil {
+			if err = gotelnats.PublishResponse(ctx, conn, reply, &analysisList); err != nil {
 				log.Error(err)
 			}
 			return
@@ -69,15 +69,15 @@ func getHandler(conn *nats.EncodedConn, httpClient *http.Client, appsBaseURL *ur
 			analysisID, err = getAnalysisIDByExternalID(httpClient, appsBaseURL, requestingUser, request.GetExternalId())
 			if err != nil {
 				if errors.Is(err, ErrAnalysisNotFound) {
-					analysisList.Error = InitServiceError(ctx, err, &ErrorOptions{
+					analysisList.Error = gotelnats.InitServiceError(ctx, err, &gotelnats.ErrorOptions{
 						ErrorCode: svcerror.ErrorCode_NOT_FOUND,
 					})
 				} else {
-					analysisList.Error = InitServiceError(ctx, err, &ErrorOptions{
+					analysisList.Error = gotelnats.InitServiceError(ctx, err, &gotelnats.ErrorOptions{
 						ErrorCode: svcerror.ErrorCode_BAD_REQUEST,
 					})
 				}
-				if err = NATSPublishResponse(ctx, conn, reply, &analysisList); err != nil {
+				if err = gotelnats.PublishResponse(ctx, conn, reply, &analysisList); err != nil {
 					log.Error(err)
 				}
 				return
@@ -95,8 +95,8 @@ func getHandler(conn *nats.EncodedConn, httpClient *http.Client, appsBaseURL *ur
 			// filters with that.
 			username, err := lookupUsername(ctx, conn, usersSubject, request.GetUserId())
 			if err != nil {
-				analysisList.Error = InitServiceError(ctx, err, nil)
-				if err = NATSPublishResponse(ctx, conn, reply, &analysisList); err != nil {
+				analysisList.Error = gotelnats.InitServiceError(ctx, err, nil)
+				if err = gotelnats.PublishResponse(ctx, conn, reply, &analysisList); err != nil {
 					log.Error(err)
 				}
 				return
@@ -123,8 +123,8 @@ func getHandler(conn *nats.EncodedConn, httpClient *http.Client, appsBaseURL *ur
 
 		records, err := getAnalysis(httpClient, appsBaseURL, requestingUser, filter)
 		if err != nil {
-			analysisList.Error = InitServiceError(ctx, err, nil)
-			if err = NATSPublishResponse(ctx, conn, reply, &analysisList); err != nil {
+			analysisList.Error = gotelnats.InitServiceError(ctx, err, nil)
+			if err = gotelnats.PublishResponse(ctx, conn, reply, &analysisList); err != nil {
 				log.Error(err)
 			}
 			return
@@ -132,7 +132,7 @@ func getHandler(conn *nats.EncodedConn, httpClient *http.Client, appsBaseURL *ur
 
 		analysisList.Analyses = records
 
-		if err = NATSPublishResponse(ctx, conn, reply, &analysisList); err != nil {
+		if err = gotelnats.PublishResponse(ctx, conn, reply, &analysisList); err != nil {
 			log.Error(err)
 			return
 		}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"net/http"
 	"net/url"
@@ -12,9 +13,16 @@ import (
 	"github.com/cyverse-de/go-mod/otelutils"
 	"github.com/cyverse-de/go-mod/protobufjson"
 	"github.com/nats-io/nats.go"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
+
+const serviceName = "discoenv-analyses"
+
+var log = logging.Log.WithFields(logrus.Fields{"service": serviceName})
+
+var ErrAnalysisNotFound = errors.New("analysis not found")
 
 func main() {
 	var (
