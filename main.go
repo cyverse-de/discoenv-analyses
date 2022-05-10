@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
 	"net/http"
 	"net/url"
 	"time"
+
+	_ "expvar"
 
 	"github.com/cyverse-de/configurate"
 	"github.com/cyverse-de/go-mod/logging"
@@ -40,6 +43,7 @@ func main() {
 		natsSubject   = flag.String("subject", "cyverse.discoenv.analyses.>", "The NATS subject to subscribe to for incoming requests")
 		natsQueue     = flag.String("queue", "discoenv_analyses_service", "The NATS queue name for this instance. Joins to a queue group by default")
 		usersSubject  = flag.String("users-subject", "cyverse.discoenv.users.requests", "The NATS subject to send user-related requests out on")
+		varsPort      = flag.Int("vars-port", 60000, "The port number to listen on for requests to /debug/vars")
 		logLevel      = flag.String("log-level", "info", "One of trace, debug, info, warn, error, fatal, or panic.")
 	)
 
@@ -106,5 +110,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	select {}
+	portString := fmt.Sprintf(":%d", *varsPort)
+	if err = http.ListenAndServe(portString, nil); err != nil {
+		log.Fatal(err)
+	}
 }
