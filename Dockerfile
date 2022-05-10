@@ -11,7 +11,7 @@ ENV CGO_ENABLED=0
 ENV GOOS=linux
 ENV GOARCH=amd64
 
-RUN go build
+RUN go build --buildvcs=false
 RUN mv discoenv-analyses /usr/local/bin/
 
 ENTRYPOINT ["discoenv-analyses"]
