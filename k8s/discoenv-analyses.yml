@@ -56,9 +56,6 @@ spec:
           limits:
             cpu: "100m"
             memory: "256Mi"
-        args:
-          - --log-level
-          - debug
         env:
           - name: OTEL_TRACES_EXPORTER
             valueFrom:
@@ -81,20 +78,10 @@ spec:
             mountPath: /etc/iplant/de
             readOnly: true
           - name: nats-client-tls
-            mountPath: /etc/nats/tls.crt
-            subPath: tls.crt
-            readOnly: true
-          - name: nats-client-tls
-            mountPath: /etc/nats/tls.key
-            subPath: tls.key
-            readOnly: true
-          - name: nats-client-tls
-            mountPath: /etc/nats/ca.crt
-            subPath: ca.crt
+            mountPath: /etc/nats/tls
             readOnly: true
           - name: nats-services-creds
-            mountPath: /etc/nats/services.creds
-            subPath: services.creds
+            mountPath: /etc/nats/creds
             readOnly: true
         livenessProbe:
           httpGet:
